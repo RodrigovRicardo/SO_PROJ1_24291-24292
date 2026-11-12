@@ -27,14 +27,13 @@ DWORD atrasos[MAX_CARROS];
 Carro carros [MAX_CARROS];
 HANDLE threads[MAX_CARROS];
 
-volatile LONG carrosNaPonte[2] = {0, 0};
-volatile LONG violacoes = 0;
+LONG carrosNaPonte[2] = {0, 0};
+LONG violacoes = 0;
 
 //protege a verificção dos contadores
 HANDLE mutexVerificador;
 
 //registo de entradas e saidas e verifica as regrasa
-
 void verificar(Carro *carro, int aEntrar)
 {
     if (WaitForSingleObject(mutexVerificador, INFINITE) != WAIT_OBJECT_0) {
@@ -118,7 +117,7 @@ int main(int argc, char *argv[])
     intervaloChegada = atoi(argv[3]);
     passagem = atoi(argv[4]);
 
-//verificar quantidade de carros de cada lado
+    //verificar quantidade de carros de cada lado
     if (nNorte < 0 || nSul < 0 || nNorte > MAX_CARROS || nSul > MAX_CARROS) {
         printf("Quantidade de carros invalida. \n");
         
@@ -164,7 +163,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    //mutexz do verificador
+    //mutex do verificador
     mutexVerificador = CreateMutex(NULL, FALSE, NULL);
 
     if (mutexVerificador == NULL) {
