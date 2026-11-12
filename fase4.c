@@ -58,10 +58,10 @@ void verificar(Carro *carro, int aEntrar)
     }
 
     if (aEntrar) {
-        InterlockedIncrement(&carrosNaPonte[carro->sentido]);
+        carrosNaPonte[carro->sentido]++;
         carro->entrada = GetTickCount() - inicioSimulacao;
     } else {
-        InterlockedDecrement(&carrosNaPonte[carro->sentido]);
+        carrosNaPonte[carro->sentido]--;
         carro->saida = GetTickCount() - inicioSimulacao;
     }
 
@@ -69,7 +69,7 @@ void verificar(Carro *carro, int aEntrar)
     if ((carrosNaPonte[NORTE] > 0 && carrosNaPonte[SUL] > 0) ||
         carrosNaPonte[NORTE] + carrosNaPonte[SUL] > MAX_PONTE) {
 
-        InterlockedIncrement(&violacoes);
+        violacoes++;
 
         printf("Violacao! Norte: %ld | Sul: %ld\n",
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
