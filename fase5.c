@@ -27,8 +27,8 @@ DWORD atrasos[MAX_CARROS];
 Carro carros [MAX_CARROS];
 HANDLE threads[MAX_CARROS];
 
-LONG carrosNaPonte[2] = {0, 0};
-LONG violacoes = 0;
+int carrosNaPonte[2] = {0, 0};
+int violacoes = 0;
 
 //protege a verificção dos contadores
 HANDLE mutexVerificador;
