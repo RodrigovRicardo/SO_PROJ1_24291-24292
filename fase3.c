@@ -64,7 +64,7 @@ void verificar(Carro *carro, int aEntrar)
 
         violacoes++;
 
-        printf("Violacao! Norte: %ld | Sul: %ld\n",
+        printf("Violacao! Norte: %d | Sul: %d\n",
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
     }
 
@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
     mostrarEspera(NORTE, totalCarros);
     mostrarEspera(SUL, totalCarros);
     printf("Debito: %.2f carros por segundo \n", debito);
-    printf("Total de violacoes: %ld\n", violacoes);
+    printf("Total de violacoes: %d\n", violacoes);
 
     return 0;
 }

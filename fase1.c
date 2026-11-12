@@ -55,7 +55,7 @@ void verificar(Carro *carro, int aEntrar)
 
         violacoes++;
 
-        printf("Violacao! Norte: %ld | Sul: %ld\n",
+        printf("Violacao! Norte: %d | Sul: %d\n",
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
     }
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("Total de violacoes: %ld\n", violacoes);
+    printf("Total de violacoes: %d\n", violacoes);
 
     return 0;
 }
