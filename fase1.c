@@ -30,16 +30,9 @@ HANDLE threads[MAX_CARROS];
 int carrosNaPonte[2] = {0, 0};
 int violacoes = 0;
 
-//protege a verificção dos contadores
-HANDLE mutexVerificador;
-
 //registo de entradas e saidas e verifica as regrasa
 void verificar(Carro *carro, int aEntrar)
 {
-    if (WaitForSingleObject(mutexVerificador, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex do verificador.\n");
-        exit(1);
-    }
 
     if (aEntrar) {
         carrosNaPonte[carro->sentido]++;
@@ -59,10 +52,6 @@ void verificar(Carro *carro, int aEntrar)
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
     }
 
-    if (!ReleaseMutex(mutexVerificador)) {
-        printf("Erro ao libertar o mutex do verificador.\n");
-        exit(1);
-    }
 }
 
 void ponte_entrar(Carro *carro){
@@ -163,14 +152,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    //mutex do verificador
-    mutexVerificador = CreateMutex(NULL, FALSE, NULL);
-
-    if (mutexVerificador == NULL) {
-        printf("Erro ao criar o mutex do verificador.\n");
-        return 1;
-    }
-
     inicioSimulacao = GetTickCount();
 
     for (i = 0; i < totalCarros; i++) {
@@ -197,12 +178,6 @@ int main(int argc, char *argv[])
             printf("Erro ao fechar o handle da thread.\n");
             return 1;
         }
-    }
-
-
-    if (!CloseHandle(mutexVerificador)) {
-        printf("Erro ao fechar o handle do mutex.\n");
-        return 1;
     }
 
     printf("Total de violacoes: %d\n", violacoes);

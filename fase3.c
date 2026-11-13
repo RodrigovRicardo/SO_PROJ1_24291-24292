@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
     DWORD atrasoNorte = 0;
     DWORD atrasoSul = 0;
     DWORD duracaoSimulacao;
-    double debito;
+    int debito;
 
     if(argc != 5 && argc != 6){
         printf("Uso: ponte.exe <n_norte> <n_sul> <chegada_ms> <travessia_ms> [semente]");
@@ -383,7 +383,7 @@ int main(int argc, char *argv[])
 
     mostrarEspera(NORTE, totalCarros);
     mostrarEspera(SUL, totalCarros);
-    printf("Debito: %.2f carros por segundo \n", debito);
+    printf("Debito: %d carro/s por segundo \n", debito);
     printf("Total de violacoes: %d\n", violacoes);
 
     return 0;
