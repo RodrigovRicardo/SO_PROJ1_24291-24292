@@ -51,10 +51,7 @@ int ambulanciaAutorizada = 0;
 
 void verificar(Carro *carro, int aEntrar)
 {
-    if (WaitForSingleObject(mutexVerificador, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex do verificador.\n");
-        exit(1);
-    }
+    WaitForSingleObject(mutexVerificador, INFINITE);
 
     if (aEntrar) {
         carrosNaPonte[carro->sentido]++;
@@ -74,10 +71,7 @@ void verificar(Carro *carro, int aEntrar)
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
     }
 
-    if (!ReleaseMutex(mutexVerificador)) {
-        printf("Erro ao libertar o mutex do verificador.\n");
-        exit(1);
-    }
+    ReleaseMutex(mutexVerificador);
 }
 
 void autorizarEntrada(void){
@@ -116,10 +110,7 @@ void autorizarEntrada(void){
         inicioFila++;
     }
 
-    if(!ReleaseSemaphore(podeEntrar[seguinte], 1, NULL)){
-        printf("Erro ao autorizar a entrada.\n");
-        exit(1);
-    }
+    ReleaseSemaphore(podeEntrar[seguinte], 1, NULL);
 }
 
 void ponte_entrar(Carro *carro)
@@ -127,10 +118,7 @@ void ponte_entrar(Carro *carro)
     int indice = carro -> id - 1;
 
     //Pedido na fila
-    if (WaitForSingleObject(mutexFila, INFINITE) != WAIT_OBJECT_0){
-        printf("Erro ao adquirir o mutex da fila. \n");
-        exit(1);
-    }
+    WaitForSingleObject(mutexFila, INFINITE);
     
     if(indice == indiceAmbulancia){
         ambulanciaEspera = 1;
@@ -141,30 +129,17 @@ void ponte_entrar(Carro *carro)
 
     autorizarEntrada();
 
-    if(!ReleaseMutex(mutexFila)){
-        printf("Erro ao libertar o mutex da fila. \n");
-        exit(1);
-    }
+    ReleaseMutex(mutexFila);
 
     //esperar pela vez
-    if(WaitForSingleObject(podeEntrar[indice], INFINITE) != WAIT_OBJECT_0){
-        printf("Erro ao esperar pela vez do carro. \n");
-        exit(1);
-    }
+    WaitForSingleObject(podeEntrar[indice], INFINITE);
 
-    if (WaitForSingleObject(semaforoCapacidade, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir um lugar na ponte.\n");
-        exit(1);
-    }
+    WaitForSingleObject(semaforoCapacidade, INFINITE);
 
     verificar(carro, 1);
 
     //avança a fila depois do carro conseguir entrar
-    if (WaitForSingleObject(mutexFila, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex da fila.\n");
-        exit(1);
-    }
-
+    WaitForSingleObject(mutexFila, INFINITE);
 
     if (indice == indiceAmbulancia){
         ambulanciaEspera = 0;
@@ -173,10 +148,7 @@ void ponte_entrar(Carro *carro)
 
     autorizarEntrada();
 
-    if(!ReleaseMutex(mutexFila)){
-        printf("Erro ao libertar o mutex da fila.\n");
-        exit(1);
-    }
+    ReleaseMutex(mutexFila);
 }
 
 void ponte_sair(Carro *carro)
@@ -186,15 +158,9 @@ void ponte_sair(Carro *carro)
 
     verificar(carro, 0);
 
-    if (!ReleaseSemaphore(semaforoCapacidade, 1, NULL)) {
-        printf("Erro ao libertar um lugar na ponte.\n");
-        exit(1);
-    }
+    ReleaseSemaphore(semaforoCapacidade, 1, NULL);
 
-    if (WaitForSingleObject(mutexFila, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex da fila.\n");
-        exit(1);
-    }
+    WaitForSingleObject(mutexFila, INFINITE);
 
     carrosAutorizados[sentido]--;
 
@@ -205,10 +171,7 @@ void ponte_sair(Carro *carro)
     autorizarEntrada();
 
     // Todos libertam o mutex do contador
-    if (!ReleaseMutex(mutexFila)) {
-        printf("Erro ao libertar o mutex da fila.\n");
-        exit(1);
-    }
+    ReleaseMutex(mutexFila);
 }
 
 DWORD WINAPI funcaoCarro(LPVOID parametro){
@@ -374,56 +337,36 @@ int main(int argc, char *argv[])
     //mutex do verificador
     mutexVerificador = CreateMutex(NULL, FALSE, NULL);
 
-    if (mutexVerificador == NULL) {
-        printf("Erro ao criar o mutex do verificador.\n");
-        return 1;
-    }
+    if (mutexVerificador == NULL) return 1;
 
     semaforoCapacidade = CreateSemaphore(NULL, MAX_PONTE, MAX_PONTE, NULL);
 
-    if (semaforoCapacidade == NULL) {
-        printf("Erro ao criar o semaforo da capacidade. \n");
-        return 1;
-    }
+    if (semaforoCapacidade == NULL) return 1;
 
-   
     // Cria o mutex da fila
     mutexFila = CreateMutex(NULL, FALSE, NULL);
 
-    if (mutexFila == NULL) {
-        printf("Erro ao criar o mutex da fila.\n");
-        return 1;
-    }
+    if (mutexFila == NULL) return 1;
 
     // Cria o semaforo individual de cada carro
     for (i = 0; i < totalCarros; i++) {
         podeEntrar[i] = CreateSemaphore(NULL, 0, 1, NULL);
 
-        if (podeEntrar[i] == NULL) {
-            printf("Erro ao criar o semaforo do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        if (podeEntrar[i] == NULL) return 1;
     }
 
     inicioSimulacao = GetTickCount();
 
-    
     for (i = 0; i < totalCarros; i++) {
         threads[i] = CreateThread(
             NULL, 0, funcaoCarro, &carros[i], 0, NULL
         );
 
-        if (threads[i] == NULL) {
-            printf("Erro ao criar a thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        if (threads[i] == NULL) return 1;
     }
 
     for (i = 0; i < totalCarros; i++) {
-        if (WaitForSingleObject(threads[i], INFINITE) != WAIT_OBJECT_0) {
-            printf("Erro ao esperar pela thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        WaitForSingleObject(threads[i], INFINITE);
     }
 
     duracaoSimulacao = GetTickCount() - inicioSimulacao;
@@ -436,35 +379,20 @@ int main(int argc, char *argv[])
 
     // Fecha os handles das threads ja terminadas
     for (i = 0; i < totalCarros; i++) {
-        if (!CloseHandle(threads[i])) {
-            printf("Erro ao fechar o handle da thread.\n");
-            return 1;
-        }
+        CloseHandle(threads[i]);
     }
 
-    if (!CloseHandle(semaforoCapacidade)) {
-        printf("Erro ao fechar o semaforo da capacidade.\n");
-        return 1;
-    }
+    CloseHandle(semaforoCapacidade);
 
     //fecha o semaforo indv de cada carro
     for(i = 0; i < totalCarros; i++){
-        if(!CloseHandle(podeEntrar[i])){
-            printf("Erro ao fechar o semaforo do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        CloseHandle(podeEntrar[i]);
     }
 
     //fechar mtx
-    if(!CloseHandle(mutexFila)){
-        printf("Erro ao fechar o mutex da fila. \n");
-        return 1;
-    }
+    CloseHandle(mutexFila);
 
-        if (!CloseHandle(mutexVerificador)) {
-        printf("Erro ao fechar o mutex do verificador.\n");
-        return 1;
-    }
+        CloseHandle(mutexVerificador);
 
     printf("\nEspera da ambulancia: %lu ms\n", carros[indiceAmbulancia].entrada - carros[indiceAmbulancia].chegada);
     printf("\nEsperas dos carros normais:\n");

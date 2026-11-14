@@ -33,22 +33,21 @@ int violacoes = 0;
 //protege a verificção dos contadores
 HANDLE mutexVerificador;
 
-HANDLE semaforoPonte;
+HANDLE mutexPonte;
+HANDLE eventoPonteLivre;
+
+int sentidoReservado = -1;
 
 HANDLE semaforoCapacidade;
 
 HANDLE mutexSentido[2];
 int carrosSentido[2] = {0, 0};
 
-
 //registo de entradas e saidas e verifica as regrasa
 
 void verificar(Carro *carro, int aEntrar)
 {
-    if (WaitForSingleObject(mutexVerificador, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex do verificador.\n");
-        exit(1);
-    }
+    WaitForSingleObject(mutexVerificador, INFINITE);
 
     if (aEntrar) {
         carrosNaPonte[carro->sentido]++;
@@ -68,43 +67,46 @@ void verificar(Carro *carro, int aEntrar)
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
     }
 
-    if (!ReleaseMutex(mutexVerificador)) {
-        printf("Erro ao libertar o mutex do verificador.\n");
-        exit(1);
-    }
+    ReleaseMutex(mutexVerificador);
 }
 
 void ponte_entrar(Carro *carro)
 {
-    int sentido = carro -> sentido;
+    int sentido = carro->sentido;
 
-    if (WaitForSingleObject(mutexSentido[sentido], INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex do sentido. \n");
-        exit(1);
+    WaitForSingleObject(mutexSentido[sentido], INFINITE);
+
+    /* O primeiro carro do grupo reserva o sentido da ponte. */
+    if (carrosSentido[sentido] == 0) {
+
+        WaitForSingleObject(mutexPonte, INFINITE);
+
+        while (sentidoReservado != -1) {
+
+            /* Liberta o mutex antes de esperar pela ponte livre. */
+            ReleaseMutex(mutexPonte);
+
+            WaitForSingleObject(eventoPonteLivre, INFINITE);
+
+            /* Volta a proteger o estado antes de o consultar. */
+            WaitForSingleObject(mutexPonte, INFINITE);
+        }
+
+        sentidoReservado = sentido;
+
+        ResetEvent(eventoPonteLivre);
+
+        ReleaseMutex(mutexPonte);
     }
 
     carrosSentido[sentido]++;
 
-    if(carrosSentido[sentido] == 1){
-        if (WaitForSingleObject(semaforoPonte, INFINITE) !=WAIT_OBJECT_0){
-            printf("Erro ao reservar a ponte. \n");
-            exit(1);
-        }
-    }
+    ReleaseMutex(mutexSentido[sentido]);
 
-    if(!ReleaseMutex(mutexSentido[sentido])) {
-        printf("Erro ao libertar o mutex do sentido. \n");
-        exit(1);
-    }
-
-    if(WaitForSingleObject(semaforoCapacidade, INFINITE) != WAIT_OBJECT_0){
-        printf("Erro ao adquirir um lugar na ponte.\n");
-        exit(1);
-
-    }
+    /* Cada carro precisa de um dos tres lugares. */
+    WaitForSingleObject(semaforoCapacidade, INFINITE);
 
     verificar(carro, 1);
-
 }
 
 void ponte_sair(Carro *carro)
@@ -113,31 +115,27 @@ void ponte_sair(Carro *carro)
 
     verificar(carro, 0);
 
-    if (!ReleaseSemaphore(semaforoCapacidade, 1, NULL)) {
-        printf("Erro ao libertar um lugar na ponte.\n");
-        exit(1);
-    }
+    /* Devolve um lugar na ponte. */
+    ReleaseSemaphore(semaforoCapacidade, 1, NULL);
 
-    if (WaitForSingleObject(mutexSentido[sentido], INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex do sentido.\n");
-        exit(1);
-    }
+    WaitForSingleObject(mutexSentido[sentido], INFINITE);
 
     carrosSentido[sentido]--;
 
-    // Apenas o ultimo carro liberta a ponte
+    /* O ultimo carro do grupo liberta a reserva. */
     if (carrosSentido[sentido] == 0) {
-        if (!ReleaseSemaphore(semaforoPonte, 1, NULL)) {
-            printf("Erro ao libertar a ponte.\n");
-            exit(1);
-        }
+
+        WaitForSingleObject(mutexPonte, INFINITE);
+
+        sentidoReservado = -1;
+
+        /* Avisa os carros que aguardam pela ponte livre. */
+        SetEvent(eventoPonteLivre);
+
+        ReleaseMutex(mutexPonte);
     }
 
-    // Todos libertam o mutex do contador
-    if (!ReleaseMutex(mutexSentido[sentido])) {
-        printf("Erro ao libertar o mutex do sentido.\n");
-        exit(1);
-    }
+    ReleaseMutex(mutexSentido[sentido]);
 }
 
 DWORD WINAPI funcaoCarro(LPVOID parametro){
@@ -221,6 +219,8 @@ int main(int argc, char *argv[])
     int nSul;
     int intervaloChegada;
     int passagem;
+    int norteRestantes;
+    int sulRestantes;
 
     unsigned int semente;
 
@@ -270,17 +270,21 @@ int main(int argc, char *argv[])
     srand(semente);
 
     totalCarros = nNorte + nSul;
+    norteRestantes = nNorte;
+    sulRestantes = nSul;
 
     for (i = 0; i < totalCarros; i++) {
         carros[i].id = i + 1;
 
-        if (i < nNorte) {
+        if (rand() % (norteRestantes + sulRestantes) < norteRestantes) {
             carros[i].sentido = NORTE;
+            norteRestantes--;
 
             atrasoNorte += rand() % (intervaloChegada + 1);
             atrasos[i] = atrasoNorte;
         } else {
             carros[i].sentido = SUL;
+            sulRestantes--;
 
             atrasoSul += rand() % (intervaloChegada + 1);
             atrasos[i] = atrasoSul;
@@ -290,36 +294,29 @@ int main(int argc, char *argv[])
     //mutexz do verificador
     mutexVerificador = CreateMutex(NULL, FALSE, NULL);
 
-    if (mutexVerificador == NULL) {
-        printf("Erro ao criar o mutex do verificador.\n");
-        return 1;
-    }
+    if (mutexVerificador == NULL) return 1;
 
+    mutexPonte = CreateMutex(NULL, FALSE, NULL);
 
-    semaforoPonte = CreateSemaphore(NULL, 1, 1, NULL);
+    if (mutexPonte == NULL) return 1;
 
-    if (semaforoPonte == NULL) {
-        printf("Erro ao criar o semaforo da ponte. \n");
+    eventoPonteLivre = CreateEvent(NULL, TRUE, TRUE, NULL);
+
+    if (eventoPonteLivre == NULL) {
+        CloseHandle(mutexPonte);
 
         return 1;
     }
 
     semaforoCapacidade = CreateSemaphore(NULL, MAX_PONTE, MAX_PONTE, NULL);
 
-    if (semaforoCapacidade == NULL) {
-        printf("Erro ao criar o semaforo da capacidade. \n");
-        return 1;
-    }
+    if (semaforoCapacidade == NULL) return 1;
 
     for (i = 0; i <2; i++){
         mutexSentido[i] = CreateMutex(NULL, FALSE, NULL);
 
-        if(mutexSentido[i] == NULL){
-            printf("Erro ao criar o mutex de um sentido. \n");
-            return 1;
-        }
+        if (mutexSentido[i] == NULL) return 1;
     }
-
 
     inicioSimulacao = GetTickCount();
 
@@ -328,17 +325,11 @@ int main(int argc, char *argv[])
             NULL, 0, funcaoCarro, &carros[i], 0, NULL
         );
 
-        if (threads[i] == NULL) {
-            printf("Erro ao criar a thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        if (threads[i] == NULL) return 1;
     }
 
     for (i = 0; i < totalCarros; i++) {
-        if (WaitForSingleObject(threads[i], INFINITE) != WAIT_OBJECT_0) {
-            printf("Erro ao esperar pela thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        WaitForSingleObject(threads[i], INFINITE);
     }
 
     duracaoSimulacao = GetTickCount() - inicioSimulacao;
@@ -351,35 +342,18 @@ int main(int argc, char *argv[])
 
     // Fecha os handles das threads ja terminadas
     for (i = 0; i < totalCarros; i++) {
-        if (!CloseHandle(threads[i])) {
-            printf("Erro ao fechar o handle da thread.\n");
-            return 1;
-        }
+        CloseHandle(threads[i]);
     }
 
+    CloseHandle(mutexPonte);
 
-    // Fecha os semaforos depois de todas as threads terminarem
-    if (!CloseHandle(semaforoPonte)) {
-        printf("Erro ao fechar o semaforo da ponte.\n");
-        return 1;
-    }
-
-    if (!CloseHandle(semaforoCapacidade)) {
-        printf("Erro ao fechar o semaforo da capacidade.\n");
-        return 1;
-    }
+    CloseHandle(eventoPonteLivre);
 
     for(i = 0; i < 2; i++){
-        if(!CloseHandle(mutexSentido[i])){
-            printf("Erro ao fechar o mutex de um sentido. \n");
-            return 1;
-        }
+        CloseHandle(mutexSentido[i]);
     }
 
-        if (!CloseHandle(mutexVerificador)) {
-        printf("Erro ao fechar o mutex do verificador.\n");
-        return 1;
-    }
+        CloseHandle(mutexVerificador);
 
     mostrarEspera(NORTE, totalCarros);
     mostrarEspera(SUL, totalCarros);

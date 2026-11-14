@@ -30,19 +30,11 @@ HANDLE threads[MAX_CARROS];
 int carrosNaPonte[2] = {0, 0};
 int violacoes = 0;
 
-//protege a verificção dos contadores
-HANDLE mutexVerificador;
-
 HANDLE mutexPonte;
-
 
 //registo de entradas e saidas e verifica as regrasa
 void verificar(Carro *carro, int aEntrar)
 {
-    if (WaitForSingleObject(mutexVerificador, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex do verificador.\n");
-        exit(1);
-    }
 
     if (aEntrar) {
         carrosNaPonte[carro->sentido]++;
@@ -62,18 +54,11 @@ void verificar(Carro *carro, int aEntrar)
                carrosNaPonte[NORTE], carrosNaPonte[SUL]);
     }
 
-    if (!ReleaseMutex(mutexVerificador)) {
-        printf("Erro ao libertar o mutex do verificador.\n");
-        exit(1);
-    }
 }
 
 void ponte_entrar(Carro *carro)
 {
-    if (WaitForSingleObject(mutexPonte, INFINITE) != WAIT_OBJECT_0) {
-        printf("Erro ao adquirir o mutex da ponte. \n");
-        exit(1);
-    }
+    WaitForSingleObject(mutexPonte, INFINITE);
 
     verificar (carro, 1);
 }
@@ -82,10 +67,7 @@ void ponte_sair (Carro *carro)
 {
     verificar(carro, 0);
 
-    if(!ReleaseMutex(mutexPonte)) {
-        printf("Erro ao libertar o mutex da ponte. \n");
-        exit(1);
-    }
+    ReleaseMutex(mutexPonte);
 }
 
 DWORD WINAPI funcaoCarro(LPVOID parametro){
@@ -235,23 +217,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    //mutexz do verificador
-    mutexVerificador = CreateMutex(NULL, FALSE, NULL);
-
-    if (mutexVerificador == NULL) {
-        printf("Erro ao criar o mutex do verificador.\n");
-        return 1;
-    }
-
     //controla o acesso a ponte
     mutexPonte = CreateMutex(NULL, FALSE, NULL);
 
-    if (mutexPonte == NULL) {
-        printf("Erro ao criar o mutex da ponte. \n");
-
-        return 1;
-    }
-
+    if (mutexPonte == NULL) return 1;
 
     inicioSimulacao = GetTickCount();
 
@@ -260,17 +229,11 @@ int main(int argc, char *argv[])
             NULL, 0, funcaoCarro, &carros[i], 0, NULL
         );
 
-        if (threads[i] == NULL) {
-            printf("Erro ao criar a thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        if (threads[i] == NULL) return 1;
     }
 
     for (i = 0; i < totalCarros; i++) {
-        if (WaitForSingleObject(threads[i], INFINITE) != WAIT_OBJECT_0) {
-            printf("Erro ao esperar pela thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        WaitForSingleObject(threads[i], INFINITE);
     }
 
     duracaoSimulacao = GetTickCount() - inicioSimulacao;
@@ -283,23 +246,11 @@ int main(int argc, char *argv[])
 
     // Fecha os handles das threads ja terminadas
     for (i = 0; i < totalCarros; i++) {
-        if (!CloseHandle(threads[i])) {
-            printf("Erro ao fechar o handle da thread.\n");
-            return 1;
-        }
+        CloseHandle(threads[i]);
     }
-
 
     // Fecha o mutex da ponte depois de todas as threads terminarem
-    if (!CloseHandle(mutexPonte)) {
-        printf("Erro ao fechar o handle do mutex da ponte.\n");
-        return 1;
-    }
-
-    if (!CloseHandle(mutexVerificador)) {
-        printf("Erro ao fechar o handle do mutex.\n");
-        return 1;
-    }
+    CloseHandle(mutexPonte);
 
     mostrarEspera(NORTE, totalCarros);
     mostrarEspera(SUL, totalCarros);

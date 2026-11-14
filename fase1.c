@@ -159,25 +159,16 @@ int main(int argc, char *argv[])
             NULL, 0, funcaoCarro, &carros[i], 0, NULL
         );
 
-        if (threads[i] == NULL) {
-            printf("Erro ao criar a thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        if (threads[i] == NULL) return 1;
     }
 
     for (i = 0; i < totalCarros; i++) {
-        if (WaitForSingleObject(threads[i], INFINITE) != WAIT_OBJECT_0) {
-            printf("Erro ao esperar pela thread do carro %d.\n", carros[i].id);
-            return 1;
-        }
+        WaitForSingleObject(threads[i], INFINITE);
     }
 
     // Fecha os handles das threads ja terminadas
     for (i = 0; i < totalCarros; i++) {
-        if (!CloseHandle(threads[i])) {
-            printf("Erro ao fechar o handle da thread.\n");
-            return 1;
-        }
+        CloseHandle(threads[i]);
     }
 
     printf("Total de violacoes: %d\n", violacoes);

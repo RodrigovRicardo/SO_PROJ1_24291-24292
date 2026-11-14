@@ -1,0 +1,39 @@
+A PONTE DE SENTIDO UNICO
+
+O ponte.exe fornecido esta compilado com a FASE 1.
+
+EXECUTAR
+Abrir na pasta dos ficheiros e executar:
+.\ponte.exe <n_norte> <n_sul> <chegada_ms> <travessia_ms> [semente]
+
+Exemplo:
+.\ponte.exe 30 30 200 300 42
+
+Os dois primeiros valores sao os numeros de carros do Norte e do Sul.
+O terceiro e o intervalo maximo entre chegadas do mesmo lado, em ms.
+O quarto e o tempo de travessia, em ms. A semente e opcional.
+
+MUDAR DE FASE
+Com GCC instalado, executar o comando correspondente na mesma pasta:
+
+Fase 1: gcc -std=c11 fase1.c -o ponte.exe
+Fase 2: gcc -std=c11 fase2.c -o ponte.exe
+Fase 3: gcc -std=c11 fase3.c -o ponte.exe
+Fase 4: gcc -std=c11 fase4.c -o ponte.exe
+Fase 5: gcc -std=c11 fase5.c -o ponte.exe
+
+A compilacao substitui o ponte.exe pela fase escolhida.
+Depois, executar novamente o programa com os parametros pretendidos.
+Esperar que a simulacao termine antes de voltar a compilar.
+
+RESUMO DAS FASES
+1 - Sem controlo: permite entradas sem sincronizacao; sao esperadas violacoes.
+2 - Exclusiva: um mutex permite apenas um carro de cada vez.
+3 - Sentido e capacidade: permite ate tres carros do mesmo sentido;
+    o primeiro do grupo reserva a ponte e o ultimo liberta a reserva.
+4 - Equidade: usa uma fila para ordenar os pedidos de entrada.
+5 - Ambulancia: acrescenta uma ambulancia com prioridade nas novas
+    autorizacoes, mantendo as regras de sentido e capacidade.
+
+Os resultados aparecem no final. Na fase 5 e acrescentada uma ambulancia
+alem dos carros indicados, e a sua espera e apresentada separadamente.
